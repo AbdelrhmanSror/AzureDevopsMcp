@@ -1,0 +1,5 @@
+requests
+fastmcp>=0.3.0
+mcp
+python-dotenv
+httpx
