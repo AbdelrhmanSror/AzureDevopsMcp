@@ -55,11 +55,11 @@ def list_pull_requests(
           or `get_pull_request_full_diff` for deeper inspection.
     """
     url = (
-            f"{ADO_ORG_URL}/{ADO_PROJECT}/_apis/git/pullrequests"
-            f"?searchCriteria.repositoryId={repo_id}"
-            f"&searchCriteria.status={status}"
-            f"&$top={top}"
-            f"&api-version=7.1-preview.1"
+        f"{ADO_ORG_URL}/{ADO_PROJECT}/_apis/git/pullrequests"
+        f"?searchCriteria.repositoryId={repo_id}"
+        f"&searchCriteria.status={status}"
+        f"&$top={top}"
+        f"&api-version=7.1-preview.1"
     )
 
     resp = client.get(url)
@@ -74,15 +74,15 @@ def list_pull_requests(
     result: List[Dict[str, Any]] = []
     for pr in prs:
         result.append(
-                {
-                    "id": pr["pullRequestId"],
-                    "title": pr["title"],
-                    "status": pr["status"],
-                    "createdBy": pr["createdBy"]["displayName"],
-                    "repoName": pr["repository"]["name"],
-                    "sourceBranch": pr.get("sourceRefName", ""),
-                    "targetBranch": pr.get("targetRefName", ""),
-                }
+            {
+                "id": pr["pullRequestId"],
+                "title": pr["title"],
+                "status": pr["status"],
+                "createdBy": pr["createdBy"]["displayName"],
+                "repoName": pr["repository"]["name"],
+                "sourceBranch": pr.get("sourceRefName", ""),
+                "targetBranch": pr.get("targetRefName", ""),
+            }
         )
 
     return result
@@ -120,20 +120,20 @@ def get_pull_request(repo_id: str, pr_id: int) -> str:
             - Decide whether a full code diff analysis (`get_pull_request_full_diff`) is needed.
     """
     url = (
-            f"{ADO_ORG_URL}/{ADO_PROJECT}"
-            f"/_apis/git/repositories/{repo_id}/pullrequests/{pr_id}?api-version=7.1-preview.1"
+        f"{ADO_ORG_URL}/{ADO_PROJECT}"
+        f"/_apis/git/repositories/{repo_id}/pullrequests/{pr_id}?api-version=7.1-preview.1"
     )
     resp = client.get(url)
     resp.raise_for_status()
     pr = resp.json()
 
     details = (
-            f"PR #{pr['pullRequestId']}: {pr['title']}\n"
-            f"Status: {pr['status']}\n"
-            f"CreatedBy: {pr['createdBy']['displayName']} ({pr['createdBy'].get('uniqueName', '')})\n"
-            f"SourceBranch: {pr.get('sourceRefName', '')}\n"
-            f"TargetBranch: {pr.get('targetRefName', '')}\n"
-            f"Description:\n{pr.get('description', '')}\n"
+        f"PR #{pr['pullRequestId']}: {pr['title']}\n"
+        f"Status: {pr['status']}\n"
+        f"CreatedBy: {pr['createdBy']['displayName']} ({pr['createdBy'].get('uniqueName', '')})\n"
+        f"SourceBranch: {pr.get('sourceRefName', '')}\n"
+        f"TargetBranch: {pr.get('targetRefName', '')}\n"
+        f"Description:\n{pr.get('description', '')}\n"
     )
 
     return details
@@ -217,9 +217,9 @@ def get_pull_request_full_diff(repo_id: str, pr_id: int) -> Dict[str, Any]:
 
     # 2. Fetch changes for that iteration
     url = (
-            f"{ADO_ORG_URL}/{ADO_PROJECT}"
-            f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/iterations/{iteration_id}/changes"
-            f"?api-version=7.1-preview.1&$top=1000"
+        f"{ADO_ORG_URL}/{ADO_PROJECT}"
+        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/iterations/{iteration_id}/changes"
+        f"?api-version=7.1-preview.1&$top=1000"
     )
 
     resp = client.get(url)
@@ -249,20 +249,20 @@ def get_pull_request_full_diff(repo_id: str, pr_id: int) -> Dict[str, Any]:
             modified_text = get_blob_text(repo_id, new_id) if new_id else ""
 
             unified_parts.append(
-                    f"--- a{path}\n"
-                    f"+++ b{path}\n"
-                    f"@@ {change_type} {path} @@\n"
-                    f"--- ORIGINAL ---\n{original_text}\n"
-                    f"--- MODIFIED ---\n{modified_text}\n"
+                f"--- a{path}\n"
+                f"+++ b{path}\n"
+                f"@@ {change_type} {path} @@\n"
+                f"--- ORIGINAL ---\n{original_text}\n"
+                f"--- MODIFIED ---\n{modified_text}\n"
             )
 
         diff_text = "\n".join(unified_parts)
 
     # 3. Fetch all PR threads (comments)
     threads_url = (
-            f"{ADO_ORG_URL}/{ADO_PROJECT}"
-            f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
-            f"?api-version=7.1-preview.1"
+        f"{ADO_ORG_URL}/{ADO_PROJECT}"
+        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
+        f"?api-version=7.1-preview.1"
     )
 
     threads_resp = client.get(threads_url)
@@ -325,9 +325,9 @@ def add_pull_request_comment(
         top-level PR thread (not attached to a specific file).
     """
     url = (
-            f"{ADO_ORG_URL}/{ADO_PROJECT}"
-            f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
-            f"?api-version=7.1-preview.1"
+        f"{ADO_ORG_URL}/{ADO_PROJECT}"
+        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
+        f"?api-version=7.1-preview.1"
     )
 
     thread_context = None
@@ -340,12 +340,12 @@ def add_pull_request_comment(
         }
 
     payload = {
-            "comments": [
-                {
-                    "parentCommentId": 0,
-                    "content": comment,
-                    "commentType": 1,  # text
-                }
+        "comments": [
+            {
+                "parentCommentId": 0,
+                "content": comment,
+                "commentType": 1,  # text
+            }
         ],
         "status": 1,  # active
     }
@@ -359,3 +359,112 @@ def add_pull_request_comment(
     data = resp.json()
     thread_id = data.get("id")
     return f"Comment posted in thread id {thread_id}"
+
+@mcp.tool()
+def set_pr_description(repo_id: str, pr_id: int, description_markdown: str) -> Dict[str, Any]:
+    """
+    Update the Azure DevOps PR description with the provided Markdown text.
+
+    ──────────────────────────────────────────────────────────────────────────────
+    IMPORTANT: REQUIRED WORKFLOW FOR THE LLM
+    ──────────────────────────────────────────────────────────────────────────────
+    This tool MUST NOT be called until the LLM has done ALL of the following:
+
+      1. Read the full diff using: get_pull_request_full_diff
+      2. Load and read the PR description guide text from:
+            PR_DESCRIPTION_GUIDE
+         (included in this tool’s docstring for safety)
+      3. Construct a **concise, high-level** PR description following EXACTLY the
+         structure and rules defined in the PR description guide.
+      4. Ensure the description focuses on **why** the PR exists and the **top 1–2
+         visible effects** of the change — NOT implementation details.
+
+    If the LLM has not followed steps 1–4, it must NOT call this tool.
+
+
+    ──────────────────────────────────────────────────────────────────────────────
+    PR DESCRIPTION GUIDE (Embedded for safety)
+    ──────────────────────────────────────────────────────────────────────────────
+    ## What type of PR is this? (check all applicable)
+    - [ ] Refactor
+    - [ ] Feature
+    - [ ] Bug Fix
+    - [ ] Platform related
+    - [ ] Documentation Update
+
+    ## Description
+    This section must be **very short and to the point**.
+
+    Rules:
+      • Describe **why** the PR exists.
+      • Give a **high-level summary** of the main change.
+      • Max length: **1 short sentence + 1–2 bullets** (or 3 lines total).
+      • NEVER restate the diff or describe the code internally.
+      • Avoid long paragraphs, unnecessary details, and explaining the algorithm.
+
+    Example good descriptions:
+      • "Fixes incorrect problem field mapping so the frontend receives the right structure."
+      • "Adds a typed endpoint to expose problem fields for the UI."
+      • "Refactors field extraction logic into a dedicated service to simplify updates."
+
+    ## Test Instructions
+      • Explain briefly how a reviewer or QA can verify the change.
+      • List key pytest commands or a short manual step if required.
+      • Keep it minimal and practical.
+
+    ## Added/updated tests?
+    - [ ] Yes
+    - [ ] No, because: <brief explanation>
+    - [ ] I need help with writing tests
+
+    ## Added/updated Code Documentation?
+    - [ ] Yes
+    - [ ] No, because: <brief explanation>
+
+    General principles:
+      • Be concise.
+      • Lead with **WHY**, not HOW.
+      • Highlight only the most important aspects.
+      • Assume reviewers can see the diff.
+      • Shorter is better.
+
+
+    ──────────────────────────────────────────────────────────────────────────────
+    PURPOSE OF THIS TOOL
+    ──────────────────────────────────────────────────────────────────────────────
+    Once the LLM generates a description that follows the rules above,
+    this tool sends that Markdown to Azure DevOps to update the PR.
+
+
+    RETURNS
+    -------
+    A small summary of the updated PR, including:
+      - id
+      - status
+      - title
+      - description
+    """
+
+
+    url = (
+        f"{ADO_ORG_URL}/{ADO_PROJECT}"
+        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}"
+        f"?api-version=7.1-preview.1"
+    )
+
+    payload = {
+        "description": description_markdown,
+    }
+
+    resp = client.patch(url, json=payload)
+    resp.raise_for_status()
+
+    pr = resp.json()
+
+    # Return a small summary so the LLM/user can confirm the update
+    return {
+        "id": pr.get("pullRequestId") or pr.get("id"),
+        "status": pr.get("status"),
+        "title": pr.get("title"),
+        "description": pr.get("description"),
+    }

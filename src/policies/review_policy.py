@@ -2,116 +2,94 @@
 from ..config import mcp
 
 REVIEW_POLICY_TEXT = """
-OFFICIAL CODE REVIEW POLICY
-===========================
+LIGHTWEIGHT PR REVIEW POLICY
+============================
 
-All pull request reviews must adhere to the following engineering standards.  
-These rules define how reviewers evaluate correctness, maintainability, clarity,
-and alignment with established conventions in this repository.
+This policy is designed for **pragmatic, focused code reviews**.
+The goal is to catch **meaningful issues** and improve the code where it matters,
+without over-reviewing or redesigning the entire solution.
 
-1) SCHEMA & MODEL DESIGN
-------------------------
-- Client-facing models must be explicit, well-typed, and avoid ambiguous structures
-  such as Dict[str, Any] where a more precise model is possible.
-- Response models must reflect the actual output of the service layer.
-- Example data in schema_extra must match the true runtime format.
-- All schema fields must include clear, meaningful descriptions explaining their purpose.
-- Naming conventions must follow project standards (e.g., *Schema suffix).
-- Avoid redundant alias definitions unless the alias differs from the field name.
-
-2) VALIDATION RULES
+SCOPE OF THE REVIEW
 -------------------
-- Validation logic belongs in schemas or the domain layer, not in API endpoints.
-- Lists that are required must validate non-emptiness.
-- Domain-specific errors (e.g., BadRequestError) must be raised for invalid inputs.
-- Do not re-implement validation that Pydantic already guarantees (e.g., Literal, Regex).
+- Prioritize **correctness**, **clarity**, and **consistency with existing patterns**.
+- Focus on **new or changed code only** as shown in the diff.
+- Do **not** attempt a full architecture review unless the PR clearly introduces
+  architectural changes.
+- Keep feedback **practical and proportionate** to the size and impact of the PR.
 
-3) API LAYER EXPECTATIONS
--------------------------
-- API docstrings must follow the project's structured format, including purpose,
-  parameters, returns, and error behavior.
-- Logging decorators must be applied consistently across endpoints.
-- The API layer should contain minimal logic; services or schemas should hold all
-  business rules.
-- Avoid unnecessary transformations when validation already guarantees correctness.
-- Endpoint naming, ordering, and style must follow established patterns.
+WHAT TO ALWAYS CHECK
+--------------------
+For the changed code, the reviewer should primarily verify:
 
-4) SERVICE LAYER PRINCIPLES
----------------------------
-- Service classes should follow the Single Responsibility Principle.
-- Complex operations should be broken into private helper methods for clarity and reuse.
-- Avoid fallback chains that mask missing data; required fields should be accessed
-  directly so integrity issues surface early.
-- Use precise types (e.g., Set[Literal[...]] or shared type definitions) rather than
-  general string sets.
-- Repeated transformations (e.g., wrapping values) should be extracted into reusable
-  helper functions.
+1) Correctness & Safety
+   - Does the new logic do what it claims to do?
+   - Are obvious edge cases or error paths handled?
+   - Is there any clear risk of crashes, bad data, or security concerns?
 
-5) CODE QUALITY & READABILITY
------------------------------
-- Code should be self-explanatory. If a comment explains obvious behavior, refactor the
-  code instead of adding comments.
-- Naming should be descriptive, consistent, and aligned with the rest of the project.
-- Avoid code duplication; refactor out shared patterns.
-- The flow of logic should be clear, linear, and predictable.
-- Follow established design patterns used across this codebase.
+2) Readability & Consistency
+   - Is the new code understandable without excessive mental effort?
+   - Does it follow existing naming, patterns, and structure in this repository?
+   - Is there unnecessary duplication that can be easily avoided?
 
-6) DOCSTRINGS & DOCUMENTATION
------------------------------
-- Every new public function, class, or module must include a complete docstring.
-- Docstrings must describe purpose, parameters, return values, error conditions, and
-  notable behavior.
-- Schema fields should include detailed explanations for API consumers.
-- Documentation must be consistent with actual behavior.
+3) Tests (Only for New Behavior)
+   - If the PR introduces non-trivial new behavior, is there at least one test
+     covering the main happy path and a key edge/error case?
+   - API tests should validate response structure; deep logic should be tested
+     in the service/domain layer.
 
-7) TESTING REQUIREMENTS
-------------------------
-- API-layer tests validate response structure, not business logic values.
-- Service-layer tests must verify logic correctness, edge cases, and error behavior.
-- Every non-trivial behavioral change must be accompanied by new or updated tests.
-- Missing tests must be called out clearly, with suggestions for what to test
-  (success paths, failure paths, edge cases).
-- Tests must follow the existing testing style and structure.
+4) Docstrings & API Contracts (When Relevant)
+   - If new public functions, endpoints, or schemas are added:
+       - Is there a minimal but clear docstring or description?
+       - Does the documented behavior match what the code actually does?
 
-8) REVIEW STYLE & EXPECTATIONS
-------------------------------
-Reviews must be structured, actionable, and written in a professional teammate tone.
-Every review must include:
+WHAT TO AVOID
+-------------
+To prevent over-review, the reviewer should **not**:
 
-- Summary of the PR's purpose and scope.
-- Old vs new code snippets for key logic changes.
-- Detailed analysis by category:
-    * Schema & Models
-    * API Layer
-    * Service Layer
-    * Validation Logic
-    * Documentation / Docstrings
-    * Testing & Coverage
-    * Readability & Maintainability
-- A final section with clear recommendations and action items.
+- Nitpick personal style preferences that do not violate existing patterns.
+- Propose large refactors unless there is a **clear, concrete** benefit
+  (e.g., obvious bug risk, major readability problem, or duplication).
+- Request changes for minor cosmetic details (spacing, trivial renames, etc.)
+  unless they materially improve clarity.
+- Reopen topics that are already clearly discussed and resolved in existing comments.
 
-9) SOURCE OF TRUTH
-------------------
-All code review conclusions must be based strictly on:
-- The unified diff returned by the diff tool
-- The existing review comments retrieved from the PR
-- The rules defined in this policy
+REVIEW OUTPUT STYLE
+-------------------
+- Keep the review **short and focused**, especially for small PRs.
+- Prefer **a few high-impact comments** over many low-value ones.
+- When pointing out an issue, include a **specific, actionable suggestion**.
+- Use a friendly, teammate tone. The goal is collaboration, not policing.
 
-Reviewers must not infer functionality that is not visible in the diff.
+SUGGESTED REVIEW STRUCTURE
+--------------------------
+Reviews may follow this simple structure:
 
-This policy must be followed for every automated and manual review.
-It defines the engineering bar for contributions to this repository.
+- Summary: 2–3 sentences describing what the PR does and overall impression.
+- Key Issues (if any): List 2–5 concrete, high-priority observations.
+- Optional Nice-to-haves: Only if they are easy wins and clearly beneficial.
+- Tests: Briefly note if tests are sufficient, missing, or could use one more case.
+
+SOURCE OF TRUTH
+---------------
+All conclusions must be based strictly on:
+- The unified diff returned by the diff tool.
+- Any existing comments on the PR (to avoid duplicating feedback).
+
+Do not assume or speculate about code that is not visible in the diff.
+
+The goal of this policy is to keep reviews **helpful, respectful, and efficient**,
+focusing on the changes that really matter.
 """
 
 
 @mcp.resource(
     uri="policy://review",
     name="Review Policy",
-    description="Official PR review policy that the LLM must follow when reviewing pull requests.",
+    description="Lightweight PR review policy that keeps feedback focused and avoids over-reviewing.",
 )
 def get_review_policy() -> str:
     """
-    Provides the official PR review policy text for this repository.
-    The client or LLM should load this resource before performing any PR review.
+    Provides the lightweight PR review policy text for this repository.
+    The client or LLM may load this resource before performing any PR review.
     """
     return REVIEW_POLICY_TEXT
