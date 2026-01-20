@@ -39,6 +39,3 @@ env/
 # OS
 .DS_Store
 Thumbs.db
-
-# Project specific
-test.py

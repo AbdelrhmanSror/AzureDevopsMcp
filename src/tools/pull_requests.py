@@ -1,6 +1,6 @@
 """Pull request-related MCP tools."""
 from typing import Dict, Any, List, Optional
-from ..config import mcp, ADO_ORG_URL, ADO_PROJECT
+from ..config import mcp, ADO_ORG_URL
 from ..client import client
 from ..utils.helpers import get_latest_iteration_id, get_blob_text
 
@@ -55,9 +55,8 @@ def list_pull_requests(
           or `get_pull_request_full_diff` for deeper inspection.
     """
     url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}/_apis/git/pullrequests"
-        f"?searchCriteria.repositoryId={repo_id}"
-        f"&searchCriteria.status={status}"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullrequests"
+        f"?searchCriteria.status={status}"
         f"&$top={top}"
         f"&api-version=7.1-preview.1"
     )
@@ -120,8 +119,8 @@ def get_pull_request(repo_id: str, pr_id: int) -> str:
             - Decide whether a full code diff analysis (`get_pull_request_full_diff`) is needed.
     """
     url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}"
-        f"/_apis/git/repositories/{repo_id}/pullrequests/{pr_id}?api-version=7.1-preview.1"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullrequests/{pr_id}"
+        f"?api-version=7.1-preview.1"
     )
     resp = client.get(url)
     resp.raise_for_status()
@@ -217,8 +216,7 @@ def get_pull_request_full_diff(repo_id: str, pr_id: int) -> Dict[str, Any]:
 
     # 2. Fetch changes for that iteration
     url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}"
-        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/iterations/{iteration_id}/changes"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/iterations/{iteration_id}/changes"
         f"?api-version=7.1-preview.1&$top=1000"
     )
 
@@ -260,8 +258,7 @@ def get_pull_request_full_diff(repo_id: str, pr_id: int) -> Dict[str, Any]:
 
     # 3. Fetch all PR threads (comments)
     threads_url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}"
-        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
         f"?api-version=7.1-preview.1"
     )
 
@@ -325,8 +322,7 @@ def add_pull_request_comment(
         top-level PR thread (not attached to a specific file).
     """
     url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}"
-        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}/threads"
         f"?api-version=7.1-preview.1"
     )
 
@@ -359,6 +355,130 @@ def add_pull_request_comment(
     data = resp.json()
     thread_id = data.get("id")
     return f"Comment posted in thread id {thread_id}"
+
+@mcp.tool()
+def create_pull_request(
+    repo_id: str,
+    source_branch: str,
+    target_branch: str,
+    title: str,
+    description: Optional[str] = None,
+    reviewers: Optional[List[str]] = None,
+    is_draft: bool = False,
+) -> Dict[str, Any]:
+    """
+    Create a new pull request in Azure DevOps.
+
+    Parameters:
+    -----------
+    repo_id : str
+        The repository GUID returned by `resolve_repo_id`.
+
+    source_branch : str
+        The source branch containing the changes. Can be specified as:
+        - Full ref: "refs/heads/feature/my-feature"
+        - Short name: "feature/my-feature" (will be auto-prefixed with "refs/heads/")
+
+    target_branch : str
+        The target branch to merge into. Can be specified as:
+        - Full ref: "refs/heads/main"
+        - Short name: "main" (will be auto-prefixed with "refs/heads/")
+
+    title : str
+        The title of the pull request.
+
+    description : str, optional
+        The description/body of the pull request. Supports Markdown formatting.
+
+        IMPORTANT: The description MUST follow the PR description guide structure.
+        After creating the PR, use the `set_pr_description` tool to properly format
+        the description according to the standard template which includes:
+        - PR type checkboxes (Refactor, Feature, Bug Fix, etc.)
+        - Description section (short, focused on WHY)
+        - Test Instructions
+        - Added/updated tests checkbox
+        - Added/updated documentation checkbox
+
+        If no description is provided here, the LLM should call `set_pr_description`
+        after PR creation to add a properly structured description.
+
+    reviewers : List[str], optional
+        List of reviewer email addresses or display names to add as required reviewers.
+
+    is_draft : bool, optional
+        If True, creates the PR as a draft. Default is False.
+
+    Returns:
+    --------
+    Dict[str, Any]
+        A dictionary containing the created PR details:
+        - id: The pull request ID
+        - url: Direct URL to the pull request
+        - title: The title
+        - status: The status (usually "active")
+        - sourceBranch: The source branch
+        - targetBranch: The target branch
+
+    Example Usage:
+    --------------
+    The LLM should call this tool when the user wants to create a new PR:
+        "Create a PR from feature/login to main"
+        "Open a pull request for my changes"
+
+    Example call:
+        create_pull_request(
+            repo_id="<guid>",
+            source_branch="feature/user-auth",
+            target_branch="main",
+            title="Add user authentication",
+            description="Implements login and logout functionality",
+            reviewers=["john.doe@company.com"],
+            is_draft=False
+        )
+    """
+    url = (
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullrequests"
+        f"?api-version=7.1-preview.1"
+    )
+
+    # Ensure branches have refs/heads/ prefix
+    if not source_branch.startswith("refs/"):
+        source_branch = f"refs/heads/{source_branch}"
+    if not target_branch.startswith("refs/"):
+        target_branch = f"refs/heads/{target_branch}"
+
+    payload: Dict[str, Any] = {
+        "sourceRefName": source_branch,
+        "targetRefName": target_branch,
+        "title": title,
+    }
+
+    if description is not None:
+        payload["description"] = description
+
+    if is_draft:
+        payload["isDraft"] = True
+
+    if reviewers:
+        # Reviewers need to be resolved to their IDs or specified as identities
+        payload["reviewers"] = [
+            {"id": reviewer, "isRequired": True} for reviewer in reviewers
+        ]
+
+    resp = client.post(url, json=payload)
+    resp.raise_for_status()
+
+    pr = resp.json()
+
+    return {
+        "id": pr.get("pullRequestId"),
+        "url": pr.get("_links", {}).get("web", {}).get("href"),
+        "title": pr.get("title"),
+        "status": pr.get("status"),
+        "sourceBranch": pr.get("sourceRefName"),
+        "targetBranch": pr.get("targetRefName"),
+    }
+
 
 @mcp.tool()
 def set_pr_description(repo_id: str, pr_id: int, description_markdown: str) -> Dict[str, Any]:
@@ -417,9 +537,21 @@ def set_pr_description(repo_id: str, pr_id: int, description_markdown: str) -> D
     - [ ] No, because: <brief explanation>
     - [ ] I need help with writing tests
 
+    **LLM MUST auto-detect this from the diff:**
+      • If the diff contains changes to test files (e.g., test_*.py, *_test.py, tests/, __tests__/),
+        check "Yes"
+      • If no test files were modified/added, check "No" and provide a brief reason
+        (e.g., "No, because: refactor only" or "No, because: config change")
+
     ## Added/updated Code Documentation?
     - [ ] Yes
     - [ ] No, because: <brief explanation>
+
+    **LLM MUST auto-detect this from the diff:**
+      • If the diff contains changes to docstrings, README, docs/, or comment blocks,
+        check "Yes"
+      • If no documentation was modified/added, check "No" and provide a brief reason
+        (e.g., "No, because: internal logic change" or "No, because: self-explanatory fix")
 
     General principles:
       • Be concise.
@@ -447,8 +579,7 @@ def set_pr_description(repo_id: str, pr_id: int, description_markdown: str) -> D
 
 
     url = (
-        f"{ADO_ORG_URL}/{ADO_PROJECT}"
-        f"/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}"
+        f"{ADO_ORG_URL}/_apis/git/repositories/{repo_id}/pullRequests/{pr_id}"
         f"?api-version=7.1-preview.1"
     )
 
@@ -467,4 +598,100 @@ def set_pr_description(repo_id: str, pr_id: int, description_markdown: str) -> D
         "status": pr.get("status"),
         "title": pr.get("title"),
         "description": pr.get("description"),
+    }
+
+
+@mcp.tool()
+def link_pr_to_work_item(
+    project: str,
+    repo_id: str,
+    pr_id: int,
+    work_item_id: int,
+) -> Dict[str, Any]:
+    """
+    Link a pull request to a work item in Azure DevOps.
+
+    This creates an "ArtifactLink" relationship between the PR and the work item,
+    making the PR visible in the work item's "Development" section and vice versa.
+
+    Parameters:
+    -----------
+    project : str
+        REQUIRED. The project name where the work item exists.
+        Use list_projects() to discover available projects.
+
+    repo_id : str
+        The repository GUID returned by `resolve_repo_id`.
+
+    pr_id : int
+        The pull request ID to link.
+
+    work_item_id : int
+        The work item ID (e.g., PBI, Bug, Task) to link the PR to.
+
+    Returns:
+    --------
+    Dict[str, Any]
+        A dictionary containing:
+        - success: True if the link was created
+        - workItemId: The linked work item ID
+        - prId: The linked PR ID
+        - message: Status message
+
+    Example Usage:
+    --------------
+    After creating a PR or when the user wants to associate a PR with a PBI:
+        "Link PR 123 to work item 456"
+        "Associate this PR with the backlog item"
+
+    Example call:
+        link_pr_to_work_item(
+            project="MyProject",
+            repo_id="<guid>",
+            pr_id=123,
+            work_item_id=456
+        )
+    """
+    # Azure DevOps uses artifact links to connect PRs to work items
+    # The PR artifact URI format is: vstfs:///Git/PullRequestId/{projectId}%2F{repoId}%2F{prId}
+
+    # First, get the project ID
+    project_url = f"{ADO_ORG_URL}/_apis/projects/{project}?api-version=7.1-preview.4"
+    project_resp = client.get(project_url)
+    project_resp.raise_for_status()
+    project_id = project_resp.json().get("id")
+
+    # Build the artifact URI for the PR
+    artifact_uri = f"vstfs:///Git/PullRequestId/{project_id}%2F{repo_id}%2F{pr_id}"
+
+    # Update work item with the artifact link using JSON Patch
+    work_item_url = (
+        f"{ADO_ORG_URL}/{project}/_apis/wit/workitems/{work_item_id}"
+        f"?api-version=7.1-preview.3"
+    )
+
+    payload = [
+        {
+            "op": "add",
+            "path": "/relations/-",
+            "value": {
+                "rel": "ArtifactLink",
+                "url": artifact_uri,
+                "attributes": {
+                    "name": "Pull Request"
+                }
+            }
+        }
+    ]
+
+    headers = {"Content-Type": "application/json-patch+json"}
+
+    resp = client.patch(work_item_url, json=payload, headers=headers)
+    resp.raise_for_status()
+
+    return {
+        "success": True,
+        "workItemId": work_item_id,
+        "prId": pr_id,
+        "message": f"Successfully linked PR #{pr_id} to work item #{work_item_id}",
     }
